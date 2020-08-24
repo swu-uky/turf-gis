@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+
+    <title>Assignment 3</title>
+    <link href="https://api.mapbox.com/mapbox.js/v3.1.1/mapbox.css" rel="stylesheet" />
+
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            width: 100%;
+            top: 0;
+            bottom: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+
+    <script src="https://api.mapbox.com/mapbox.js/v3.1.1/mapbox.js"></script>
+    <script src="https://d3js.org/d3-fetch.v1.min.js"></script>
+    <script src="https://unpkg.com/topojson@3"></script>
+    <script src="https://npmcdn.com/@turf/turf/turf.min.js"></script>
+
+    <script>
+        var map = L.map("map", {
+            zoomSnap: 0.1,
+            center: [40.33077, -99.5182],
+            zoom: 4.2
+        });
+
+        // mapbox access token
+        var accessToken =
+            "pk.eyJ1IjoibWVhZG93b2ZoYXkiLCJhIjoiY2swY3JoNDlmMDBjNzNicWVhNGM5aHFmaiJ9._nvQjnpu5KGnViUWQwCMUg";
+
+        // add mapbox tile layers using access token
+        L.tileLayer(
+            "https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=" +
+            accessToken, {
+                attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+                maxZoom: 18,
+                id: "mapbox.light",
+                accessToken: accessToken
+            }
+        ).addTo(map);
+
+        // create a geocoder control object with options
+        var geoCoderControl = L.mapbox.geocoderControl("mapbox.places", {
+            accessToken: accessToken,
+            keepOpen: true,
+            autocomplete: true,
+            position: "bottomleft"
+        });
+
+        // add the geocoder to the map
+        map.addControl(geoCoderControl);
+
+        // use d3-fetch to request the topojson
+        d3.json("data/counties.json").then(function (data) {
+            drawMap(data); // send data out of callback to a new function
+        });
+
+        function drawMap(data) {
+            // convert the TopoJSON to GeoJSON
+            var geojson = topojson.feature(data, data.objects.cb_2018_us_county_20m);
+
+            // add to our map
+            var counties = L.geoJson(geojson, {
+                style: function (feature, layer) {
+                    return {
+                        color: "white",
+                        fillColor: "#448ee4",
+                        fillOpacity: ".7",
+                        weight: 1
+                    };
+                }
+            }).addTo(map);
+
+            // listen for a selection and then invoke the callback function
+            geoCoderControl.on("select", function (result) {
+                // add a marker on the map
+                var searchResult = L.geoJson(result.feature).addTo(map);
+
+                // add and open tooltip
+                searchResult.bindTooltip(result.feature.place_name).openTooltip();
+
+                // loop through the county layers
+                counties.eachLayer(function (layer) {
+                    // convert Leaflet layer to geojson with Leaflet toGeoJSON() method
+                    var polyFeature = layer.toGeoJSON();
+
+                    // if the result's feature is inside the polygon
+                    if (turf.booleanPointInPolygon(result.feature, polyFeature)) {
+                        // adjust the map pan/zoom to the county layer bounds
+                        map.flyToBounds(layer.getBounds(), {
+                            padding: [20, 20]
+                        });
+
+                        // when the map is zooming on the flyTo
+                        map.on("zoomend", function () {
+                            layer
+                                .setStyle({
+                                    color: "#f0dc00",
+                                    fill: false,
+                                    weight: "3"
+                                })
+                                .bringToFront();
+                        });
+                    }
+                });
+
+                // create another geocoder control object with options
+                var geoCoderControl2 = L.mapbox.geocoderControl("mapbox.places", {
+                    accessToken: accessToken,
+                    keepOpen: true,
+                    autocomplete: true,
+                    position: "bottomright"
+                }); // add a second geocoder to the map
+
+                map.addControl(geoCoderControl2);
+
+                geoCoderControl2.on("select", function (result2) {
+                    // add another marker on the map
+                    var searchResult2 = L.geoJson(result2.feature).addTo(map);
+
+                    // add and open tooltip
+                    searchResult2.bindTooltip(result2.feature.place_name).openTooltip();
+
+                    // loop through the county layers
+                    counties.eachLayer(function (layer) {
+                        // convert Leaflet layer to geojson with Leaflet toGeoJSON() method
+                        var polyFeature = layer.toGeoJSON();
+
+                        // if the result's feature is inside the polygon
+                        if (turf.booleanPointInPolygon(result2.feature, polyFeature)) {
+
+                            var point1 = result.feature.geometry.coordinates;
+                            var point2 = result2.feature.geometry.coordinates;
+
+                            var midpoint = turf.midpoint(point1, point2);
+
+                            var midmarker = L.geoJson(midpoint).addTo(map);
+
+                            // adjust the map pan/zoom to the county layer bounds
+                            map.flyToBounds(midmarker.getBounds(), {
+                                padding: [20, 20],
+                            });
+
+                            map.setZoom(6);
+
+                            // when the map is zooming on the flyTo
+                            map.on("zoomend", function () {
+                                layer
+                                    .setStyle({
+                                        color: "#f0dc00",
+                                        fill: false,
+                                        weight: "3"
+                                    })
+                                    .bringToFront();
+                            });
+
+                            var tooltip =
+                                `The midpoint of your addresses is here`;
+                            midmarker.bindTooltip(tooltip).openTooltip();
+                        }
+                    });
+                })
+            });
+        } // end drawMap
+    </script>
+</body>
+
+</html>
