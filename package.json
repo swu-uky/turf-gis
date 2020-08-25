@@ -1,0 +1,25 @@
+{
+  "name": "turf-gis",
+  "version": "1.0.0",
+  "description": "",
+  "main": "process-csv.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swu-uky/turf-gis.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/swu-uky/turf-gis/issues"
+  },
+  "homepage": "https://github.com/swu-uky/turf-gis#readme",
+  "dependencies": {
+    "@turf/turf": "^5.1.6",
+    "chalk": "^4.1.0",
+    "csvtojson": "^2.0.10",
+    "geojson-validation": "^1.0.2"
+  }
+}
